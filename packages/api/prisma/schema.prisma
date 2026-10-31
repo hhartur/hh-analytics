@@ -1,0 +1,182 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum TokenType {
+  INGEST // público: vai no site, só envia eventos
+  QUERY // secreto: só lê relatórios do projeto
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  passwordHash  String
+  name          String?
+  memberships   ProjectUser[]
+  ownedProjects Project[]      @relation("ProjectOwner")
+  sessions      AdminSession[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+// Sessão do painel: só o hash do token fica no banco (vazamento do banco não dá acesso)
+model AdminSession {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Project {
+  id          String           @id @default(cuid())
+  name        String
+  slug        String           @unique
+  ownerId     String
+  owner       User             @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  domains     Domain[]
+  tokens      Token[]
+  memberships ProjectUser[]
+  visitors    Visitor[]
+  sessions    Session[]
+  pageviews   Pageview[]
+  events      AnalyticsEvent[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([ownerId])
+}
+
+// Com domínios cadastrados, a ingestão só aceita eventos vindos deles (Origin do navegador)
+model Domain {
+  id        String   @id @default(cuid())
+  name      String
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, name])
+}
+
+model Token {
+  id        String    @id @default(cuid())
+  value     String    @unique
+  type      TokenType
+  projectId String
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([projectId])
+}
+
+model ProjectUser {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  role      Role     @default(MEMBER)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, projectId])
+}
+
+// Visitante anônimo: o id aleatório do navegador, único dentro do projeto
+model Visitor {
+  id        String           @id @default(cuid())
+  projectId String
+  project   Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  visitorId String
+  browser   String?
+  os        String?
+  device    String? // desktop | mobile | tablet
+  country   String?
+  language  String?
+  screen    String?
+  firstSeen DateTime         @default(now())
+  lastSeen  DateTime         @default(now())
+  sessions  Session[]
+  pageviews Pageview[]
+  events    AnalyticsEvent[]
+
+  @@unique([projectId, visitorId])
+  @@index([projectId, lastSeen])
+}
+
+// Sessão do visitante (id do SDK; termina após 30 min sem atividade, do lado do navegador)
+model Session {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sessionId String
+  visitorId String
+  visitor   Visitor  @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  entryPath String
+  referrer  String   @default("")
+  utmSource String?
+  startedAt DateTime
+  lastSeen  DateTime
+  pageviews Int      @default(0)
+
+  @@unique([projectId, sessionId])
+  @@index([projectId, startedAt])
+}
+
+model Pageview {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  visitorId String
+  visitor   Visitor  @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  sessionId String
+  eventId   String?  // id do SDK: lote repetido não conta duas vezes
+  path      String
+  title     String   @default("")
+  url       String   @default("")
+  referrer  String   @default("")
+  utm       Json?
+  browser   String?
+  os        String?
+  device    String?
+  country   String?
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, eventId])
+  @@index([projectId, createdAt])
+  @@index([projectId, path])
+}
+
+model AnalyticsEvent {
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  visitorId  String
+  visitor    Visitor  @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  sessionId  String
+  eventId    String?
+  name       String
+  path       String   @default("")
+  properties Json?
+  createdAt  DateTime @default(now())
+
+  @@unique([projectId, eventId])
+  @@index([projectId, createdAt])
+  @@index([projectId, name])
+}

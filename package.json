@@ -1,0 +1,22 @@
+{
+  "name": "hh-analytics-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Plataforma de analytics auto-hospedada, sem servidor central",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hhartur/hh-analytics.git"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @hh./analytics && npm run build -w @hh-analytics/api",
+    "typecheck": "npm run typecheck -w @hh./analytics && npm run typecheck -w @hh-analytics/api",
+    "test": "npm test -w @hh./analytics",
+    "test:api": "npm test -w @hh-analytics/api",
+    "dev:api": "npm run dev -w @hh-analytics/api",
+    "db:migrate": "npm run db:migrate -w @hh-analytics/api"
+  }
+}

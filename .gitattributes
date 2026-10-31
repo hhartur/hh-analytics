@@ -1,0 +1,3 @@
+# LF em todo lugar: migrações do Prisma têm checksum (CRLF quebraria o migrate deploy) e scripts rodam no Linux do container
+* text=auto eol=lf
+*.png binary
