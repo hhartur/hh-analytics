@@ -16,7 +16,7 @@ const call = async (path, { method = 'GET', token, body, headers = {}, text } = 
   });
   return { status: res.status, data: await res.json().catch(() => null), headers: res.headers };
 };
-const collect = (token, events, headers = {}) => call('/api/collect', { method: 'POST', text: JSON.stringify({ token, events }), headers: { 'User-Agent': UA, ...headers } });
+const collect = (token, events, headers = {}) => call('/api/e', { method: 'POST', text: JSON.stringify({ token, events }), headers: { 'User-Agent': UA, ...headers } });
 
 const run = `${Date.now()}`;
 const ev = (over) => ({ type: 'pageview', timestamp: Date.now(), visitorId: `visitante-a-${run}`, sessionId: `sessao-a-${run}`, path: '/', title: 'Início', url: 'https://loja.test/', referrer: '', utm: {}, screen: '1920x1080', language: 'pt-BR', ...over });

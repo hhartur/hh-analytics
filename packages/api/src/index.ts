@@ -32,7 +32,8 @@ app.get(['/health', '/api/health'], async (_req, res) => {
 });
 
 // Ingestão antes do JSON global: ela lê o corpo como texto (o SDK manda text/plain) e tem CORS aberto
-app.use('/api/collect', ingestRouter);
+// /api/e é o caminho do SDK >= 0.2 ("/api/collect" está na EasyPrivacy); /api/collect fica para SDKs antigos
+app.use(['/api/e', '/api/collect'], ingestRouter);
 
 // Resto da API: o painel é servido daqui mesmo (mesma origem). CORS_ORIGIN libera outros painéis/integrações.
 const origins = (process.env.CORS_ORIGIN || '').split(',').map((o) => o.trim()).filter(Boolean);

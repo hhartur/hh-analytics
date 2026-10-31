@@ -6,7 +6,7 @@ import { HttpError, wrap } from '../http';
 import { collectLimiter } from '../middleware/rateLimit';
 import { parseAgent } from '../ua';
 
-// POST /api/collect: recebe o lote do SDK. Aberto para qualquer site (CORS), protegido pelo token de ingestão
+// POST /api/e (e /api/collect, SDKs antigos): recebe o lote do SDK. Aberto para qualquer site (CORS), protegido pelo token de ingestão
 // e, se o projeto tiver domínios cadastrados, pelo Origin do navegador.
 const router = Router();
 

@@ -1,6 +1,6 @@
 {
   "name": "@hh./analytics",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "SDK leve de analytics para a sua própria instalação do hh-analytics (self-hosted, sem cookies, sem servidor central)",
   "license": "MIT",
   "author": "hhartur",

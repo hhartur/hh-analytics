@@ -57,17 +57,20 @@ export class Analytics {
     this.enqueue('event', String(name).slice(0, 120), properties);
   }
 
-  /** Envia o que estiver na fila agora. `beacon` usa sendBeacon (ao sair da página). */
+  /** Envia o que estiver na fila agora. `beacon`: saindo da página (sendBeacon quando o endpoint é do próprio site). */
   async flush(beacon = false): Promise<void> {
     if (!this.queue || this.sending || !this.queue.size) return;
     const batch = this.queue.take();
     const body: CollectBody = { token: this.config.token, events: batch };
-    const url = `${this.config.endpoint}/collect`;
+    // Não usa /collect: a EasyPrivacy (Brave, uBlock, AdBlock) bloqueia "/api/collect"
+    const url = `${this.config.endpoint}/e`;
     const payload = JSON.stringify(body);
     if (this.config.debug) console.debug('[hh-analytics]', body);
 
-    // text/plain não dispara preflight de CORS e é o que o sendBeacon consegue mandar
-    if (beacon && typeof navigator.sendBeacon === 'function') {
+    // text/plain não dispara preflight de CORS e é o que o sendBeacon consegue mandar.
+    // sendBeacon para outro domínio cai na regra "*$ping,third-party" dos bloqueadores, que descartam sem avisar:
+    // nesse caso vai por fetch keepalive, que também termina depois de a página fechar.
+    if (beacon && typeof navigator.sendBeacon === 'function' && new URL(url, location.href).origin === location.origin) {
       if (navigator.sendBeacon(url, new Blob([payload], { type: 'text/plain' }))) return;
     }
     this.sending = true;
@@ -132,7 +135,7 @@ export class Analytics {
       };
     }
     window.addEventListener('popstate', onRoute);
-    // Saindo da página ou trocando de aba: manda o que falta pelo sendBeacon
+    // Saindo da página ou trocando de aba: manda o que falta
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') this.flush(true).catch(() => {});
     });

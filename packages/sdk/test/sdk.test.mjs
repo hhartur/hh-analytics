@@ -12,7 +12,7 @@ const listeners = { window: {}, document: {} };
 const on = (bag) => (type, fn) => (bag[type] ||= []).push(fn);
 const fire = (bag, type) => (bag[type] || []).forEach((fn) => fn());
 
-const loc = { href: '', pathname: '/', search: '', hostname: 'loja.test' };
+const loc = { href: 'https://loja.test/', origin: 'https://loja.test', pathname: '/', search: '', hostname: 'loja.test' };
 const go = (path) => {
   const [pathname, search = ''] = path.split('?');
   Object.assign(loc, { pathname, search: search ? `?${search}` : '', href: `https://loja.test${path}` });
@@ -64,12 +64,12 @@ beforeEach(() => {
   document.referrer = 'https://google.com/search';
 });
 
-test('init conta a visita e manda o lote para {endpoint}/collect com o token no corpo', async () => {
+test('init conta a visita e manda o lote para {endpoint}/e com o token no corpo', async () => {
   const a = new Analytics();
   a.init(opts);
   await a.flush();
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].url, 'https://analytics.test/api/collect');
+  assert.equal(calls[0].url, 'https://analytics.test/api/e');
   assert.equal(calls[0].opts.headers['Content-Type'], 'text/plain');
   assert.equal(calls[0].body.token, 'tok_ingest');
   const [pv] = calls[0].body.events;
@@ -141,14 +141,27 @@ test('erro 5xx tenta de novo; 4xx (token errado) não fica preso na fila', async
   assert.equal(JSON.parse(localStorage.getItem('hh:queue')).length, 0);
 });
 
-test('ao sair da página usa sendBeacon no endpoint (não na própria página)', async () => {
+test('ao sair da página com endpoint em outro domínio usa fetch keepalive (bloqueadores barram sendBeacon de terceiros)', async () => {
   const a = new Analytics();
   a.init(opts);
   a.track('saida');
   fire(listeners.window, 'pagehide');
   await new Promise((r) => setTimeout(r, 0));
+  assert.equal(beacons.length, 0);
+  const last = calls.at(-1);
+  assert.equal(last.url, 'https://analytics.test/api/e');
+  assert.equal(last.opts.keepalive, true);
+  assert.ok(last.body.events.some((e) => e.name === 'saida'));
+});
+
+test('ao sair da página com endpoint no próprio site usa sendBeacon', async () => {
+  const a = new Analytics();
+  a.init({ ...opts, endpoint: '/k' });
+  a.track('saida');
+  fire(listeners.window, 'pagehide');
+  await new Promise((r) => setTimeout(r, 0));
   const last = beacons.at(-1);
-  assert.equal(last.url, 'https://analytics.test/api/collect');
+  assert.equal(last.url, '/k/e');
   assert.equal(last.blob.type, 'text/plain');
   const body = JSON.parse(await last.blob.text());
   assert.equal(body.token, 'tok_ingest');

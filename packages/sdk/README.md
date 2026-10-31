@@ -7,7 +7,7 @@ SDK de analytics para a **sua própria instalação** do hh-analytics. Os evento
 - Visitante e sessão anônimos (id aleatório no `localStorage`, sessão de 30 min)
 - Origem de tráfego e UTM
 - Fila offline: sem rede, os eventos esperam e são reenviados
-- Envia o que falta ao fechar a página (`sendBeacon`)
+- Envia o que falta ao fechar a página (`sendBeacon` no mesmo domínio; `fetch` com `keepalive` em outro, que bloqueador não barra)
 - Ignora robôs e navegadores automatizados
 - Seguro em SSR (no servidor não faz nada)
 - ~2 KB gzip, sem dependências, tipos TypeScript inclusos
@@ -67,7 +67,7 @@ analytics.track('cadastro', { plano: 'pro' });
 
 ## O que é enviado
 
-`POST {endpoint}/collect` com `Content-Type: text/plain` (não dispara preflight de CORS) e o corpo:
+`POST {endpoint}/e` com `Content-Type: text/plain` (não dispara preflight de CORS) e o corpo:
 
 ```json
 {

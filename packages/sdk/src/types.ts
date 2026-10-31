@@ -13,7 +13,7 @@ export interface InitOptions {
 
 export type Properties = Record<string, string | number | boolean | null>;
 
-/** Um item do lote enviado para POST {endpoint}/collect */
+/** Um item do lote enviado para POST {endpoint}/e */
 export interface CollectedEvent {
   /** Id único do evento: se o mesmo lote chegar duas vezes (rede caiu no meio, página fechou), o servidor ignora a cópia */
   id: string;
@@ -32,7 +32,7 @@ export interface CollectedEvent {
   properties?: Properties;
 }
 
-/** Corpo de POST {endpoint}/collect */
+/** Corpo de POST {endpoint}/e */
 export interface CollectBody {
   token: string;
   events: CollectedEvent[];

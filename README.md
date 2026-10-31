@@ -108,6 +108,19 @@ Ou sem bundler:
 
 O painel mostra os dois trechos já preenchidos. Detalhes do SDK em [packages/sdk/README.md](packages/sdk/README.md).
 
+### Bloqueadores (Brave, uBlock, AdBlock)
+
+O SDK 0.2 envia para `{endpoint}/e`, caminho que não está nas listas de filtro (EasyList, EasyPrivacy, uBlock, AdGuard). O antigo `/api/collect` está, e continua aceito só por compatibilidade. Para ficar de fora também de regras futuras, sirva o envio no próprio site, num caminho sem "analytics". Exemplo com Caddy, usando `endpoint: '/k'`:
+
+```
+handle_path /k/* {
+	rewrite * /api{path}
+	reverse_proxy 127.0.0.1:4000
+}
+```
+
+Isso não esconde nada de quem bloqueia o seu site de propósito numa regra própria. Só tira o hh-analytics das listas genéricas feitas para rastreadores de terceiros.
+
 ## API
 
 Todas as rotas ficam em `/api`. As do painel usam `Authorization: Bearer <token da sessão>`.
@@ -127,7 +140,7 @@ Todas as rotas ficam em `/api`. As do painel usam `Authorization: Bearer <token 
 | POST / DELETE | `/projects/:id/domains[/:domainId]` | Domínios permitidos para enviar eventos |
 | GET / POST | `/projects/:id/members` | Lista / adiciona `{ email, role }` (cria a conta com senha provisória se não existir) |
 | PATCH / DELETE | `/projects/:id/members/:userId` | Muda o papel (dono) / remove ou sai do projeto |
-| POST | `/collect` | Ingestão (usada pelo SDK). Token no corpo ou em `Authorization` |
+| POST | `/e` | Ingestão (usada pelo SDK). Token no corpo ou em `Authorization`. `/collect` continua aceito para SDK 0.1 |
 | GET | `/reports/:projectId/{summary,timeseries,pages,referrers,utm,events,browsers,os,devices,countries,realtime}` | Relatórios. Aceitam `range` (24h, 7d, 30d, 90d, 365d) ou `from`/`to` (AAAA-MM-DD), `tz` e `limit` |
 
 Relatórios aceitam a sessão de um membro do projeto ou o **token de consulta** do projeto (secreto, para integrações):
