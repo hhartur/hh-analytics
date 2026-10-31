@@ -345,8 +345,8 @@ function renderSettings(body) {
   const query = p.tokens.find((t) => t.type === 'QUERY');
   const manage = p.role === 'OWNER' || p.role === 'ADMIN';
   const endpoint = `${location.origin}/api`;
-  const npmSnippet = `npm install @hhartur/analytics\n\nimport { analytics } from '@hhartur/analytics';\n\nanalytics.init({\n  endpoint: '${endpoint}',\n  token: '${ingest?.value || 'TOKEN'}'\n});\n\nanalytics.track('cadastro', { plano: 'pro' });`;
-  const tagSnippet = `<script src="https://unpkg.com/@hhartur/analytics/dist/hh-analytics.min.js"\n  data-endpoint="${endpoint}"\n  data-token="${ingest?.value || 'TOKEN'}" defer></script>`;
+  const npmSnippet = `npm install @hh./analytics\n\nimport { analytics } from '@hh./analytics';\n\nanalytics.init({\n  endpoint: '${endpoint}',\n  token: '${ingest?.value || 'TOKEN'}'\n});\n\nanalytics.track('cadastro', { plano: 'pro' });`;
+  const tagSnippet = `<script src="https://unpkg.com/@hh./analytics/dist/hh-analytics.min.js"\n  data-endpoint="${endpoint}"\n  data-token="${ingest?.value || 'TOKEN'}" defer></script>`;
   const codeBlock = (text) => h('div', {}, h('pre', { class: 'code mono', text }), h('button', { class: 'btn small', style: 'margin-top:.5rem', onclick: () => copy(text), text: 'Copiar' }));
 
   const act = async (fn, ok) => {

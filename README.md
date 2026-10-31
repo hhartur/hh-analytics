@@ -2,7 +2,7 @@
 
 Analytics auto-hospedado, no estilo Plausible/Umami, **sem servidor central**: cada instalação tem a própria API, o próprio banco e o próprio painel. Os eventos vão só para o endpoint que o dono configura. Sem cookies e sem guardar IP.
 
-- **SDK** (`@hhartur/analytics` no npm): pageviews automáticos (inclusive SPA), eventos personalizados, UTM, origem, fila offline e envio ao fechar a página. ~2 KB gzip.
+- **SDK** (`@hh./analytics` no npm): pageviews automáticos (inclusive SPA), eventos personalizados, UTM, origem, fila offline e envio ao fechar a página. ~2 KB gzip.
 - **API + painel** (Docker): ingestão, relatórios e um painel web servido pela própria API.
 
 ```
@@ -10,7 +10,7 @@ hh-analytics/
 ├── docker-compose.yml        # PostgreSQL + API/painel
 ├── .env.example
 └── packages/
-    ├── sdk/                  # pacote npm "@hhartur/analytics" (TypeScript, esbuild)
+    ├── sdk/                  # pacote npm "@hh./analytics" (TypeScript, esbuild)
     │   ├── src/              # client, fila offline, utilitários, tipos, versão <script>
     │   └── test/             # testes num navegador simulado (node:test)
     └── api/                  # Express + Prisma + PostgreSQL
@@ -77,11 +77,11 @@ Dono e admins adicionam pessoas em **Instalação e ajustes > Membros**, pelo e-
 ## Instalar no site
 
 ```bash
-npm install @hhartur/analytics
+npm install @hh./analytics
 ```
 
 ```ts
-import { analytics } from '@hhartur/analytics';
+import { analytics } from '@hh./analytics';
 
 analytics.init({ endpoint: 'https://analytics.seusite.com/api', token: 'TOKEN_DE_INGESTAO' });
 analytics.track('cadastro', { plano: 'pro' });
@@ -90,7 +90,7 @@ analytics.track('cadastro', { plano: 'pro' });
 Ou sem bundler:
 
 ```html
-<script src="https://unpkg.com/@hhartur/analytics/dist/hh-analytics.min.js"
+<script src="https://unpkg.com/@hh./analytics/dist/hh-analytics.min.js"
   data-endpoint="https://analytics.seusite.com/api" data-token="TOKEN_DE_INGESTAO" defer></script>
 ```
 

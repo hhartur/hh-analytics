@@ -1,5 +1,5 @@
 {
-  "name": "@hhartur/analytics",
+  "name": "@hh./analytics",
   "version": "0.1.0",
   "description": "SDK leve de analytics para a sua própria instalação do hh-analytics (self-hosted, sem cookies, sem servidor central)",
   "license": "MIT",

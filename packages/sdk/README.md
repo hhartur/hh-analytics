@@ -1,4 +1,4 @@
-# @hhartur/analytics
+# @hh./analytics
 
 SDK de analytics para a **sua própria instalação** do hh-analytics. Os eventos vão só para o endpoint que você configura: sem servidor central, sem cookies, sem dado pessoal.
 
@@ -15,13 +15,13 @@ SDK de analytics para a **sua própria instalação** do hh-analytics. Os evento
 ## Instalação
 
 ```bash
-npm install @hhartur/analytics
+npm install @hh./analytics
 ```
 
 ## Uso
 
 ```ts
-import { analytics } from '@hhartur/analytics';
+import { analytics } from '@hh./analytics';
 
 analytics.init({
   endpoint: 'https://analytics.seusite.com/api', // a API da sua instalação
@@ -35,7 +35,7 @@ analytics.track('cadastro', { plano: 'pro' });
 
 ```html
 <script
-  src="https://unpkg.com/@hhartur/analytics/dist/hh-analytics.min.js"
+  src="https://unpkg.com/@hh./analytics/dist/hh-analytics.min.js"
   data-endpoint="https://analytics.seusite.com/api"
   data-token="TOKEN_DE_INGESTAO"
   defer

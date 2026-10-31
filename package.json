@@ -12,9 +12,9 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -w @hhartur/analytics && npm run build -w @hh-analytics/api",
-    "typecheck": "npm run typecheck -w @hhartur/analytics && npm run typecheck -w @hh-analytics/api",
-    "test": "npm test -w @hhartur/analytics",
+    "build": "npm run build -w @hh./analytics && npm run build -w @hh-analytics/api",
+    "typecheck": "npm run typecheck -w @hh./analytics && npm run typecheck -w @hh-analytics/api",
+    "test": "npm test -w @hh./analytics",
     "test:api": "npm test -w @hh-analytics/api",
     "dev:api": "npm run dev -w @hh-analytics/api",
     "db:migrate": "npm run db:migrate -w @hh-analytics/api"
