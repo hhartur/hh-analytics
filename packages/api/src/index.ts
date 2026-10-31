@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import { createHash } from 'crypto';
+import { readFileSync } from 'fs';
 import path from 'path';
 import { prisma } from './db';
 import { errorHandler } from './http';
@@ -53,8 +55,16 @@ if (process.env.DASHBOARD !== 'off') {
     }
     next();
   });
+  let sendIndex: express.RequestHandler = (_req, res) => res.sendFile(path.join(publicDir, 'index.html'));
+  if (!customDir) {
+    // CDN na frente (ex.: Cloudflare) guarda CSS/JS por horas: ?v= pelo conteúdo muda a cada deploy que altera os arquivos
+    const v = createHash('sha256').update(readFileSync(path.join(publicDir, 'style.css'))).update(readFileSync(path.join(publicDir, 'app.js'))).digest('hex').slice(0, 10);
+    const html = readFileSync(path.join(publicDir, 'index.html'), 'utf8').replace(/(href="style\.css|src="app\.js)"/g, `$1?v=${v}"`);
+    sendIndex = (_req, res) => res.set('Cache-Control', 'no-cache').type('html').send(html);
+    app.get(['/', '/index.html'], sendIndex);
+  }
   app.use(express.static(publicDir, { index: 'index.html', maxAge: '1h' }));
-  app.get('*', (_req, res) => res.sendFile(path.join(publicDir, 'index.html')));
+  app.get('*', sendIndex);
 } else {
   app.use((_req, res) => res.status(404).json({ error: 'Painel desligado nesta instalação (DASHBOARD=off)' }));
 }
