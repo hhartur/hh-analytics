@@ -48,6 +48,32 @@ const n = new Intl.NumberFormat('pt-BR');
 const pct = (v) => `${n.format(v)}%`;
 const dur = (s) => (s >= 3600 ? `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}min` : `${Math.floor(s / 60)}min ${String(s % 60).padStart(2, '0')}s`);
 
+// ---------- Movimento ----------
+const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const easeOut = (t) => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t));
+
+// Número que conta até o valor quando chegam dados novos (troca de período); com movimento reduzido, aparece direto
+function countTo(el, to, format) {
+  if (reduced || !to) {
+    el.textContent = format(to);
+    return;
+  }
+  const t0 = performance.now();
+  const step = (t) => {
+    const k = Math.min(1, (t - t0) / 650);
+    el.textContent = format(k < 1 ? Math.round(to * easeOut(k)) : to);
+    if (k < 1 && el.isConnected) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+// A marca: três barras de gráfico. "loop" = carregando; "rise" = sobem uma vez (entrada)
+function mark(mode) {
+  const root = svg('svg', { class: `mark ${mode || ''}`, viewBox: '0 0 32 32', 'aria-hidden': 'true' });
+  [[7, 17, 8], [14, 11, 14], [21, 6, 19]].forEach(([x, y, height], i) => root.append(svg('rect', { class: `b b${i + 1}`, x, y, width: 4, height, rx: 1.5 })));
+  return root;
+}
+
 function toast(msg) {
   document.querySelector('.toast')?.remove();
   const t = h('div', { class: 'toast', role: 'status', text: msg });
@@ -121,7 +147,7 @@ function renderAuth(setup, registration) {
     btn
   );
   mount(h('div', { class: 'auth' }, h('div', { class: 'auth-card' },
-    h('span', { class: 'logo' }, h('img', { src: 'favicon.svg', alt: '' }), 'hh-analytics'),
+    h('span', { class: 'logo' }, mark('rise'), 'hh-analytics'),
     h('h1', { text: setup ? 'Bem-vindo' : 'Entrar' }),
     h('p', { class: 'muted', text: setup ? 'Primeiro acesso a esta instalação: crie a conta de dono. Depois disso o cadastro fecha.' : 'Entre para ver os números dos seus sites.' }),
     form,
@@ -133,7 +159,7 @@ function renderAuth(setup, registration) {
 // ---------- Painel ----------
 async function start() {
   clearInterval(liveTimer);
-  mount(h('div', { class: 'auth' }, h('div', { class: 'skeleton', style: 'width:18rem;height:12rem' })));
+  mount(h('div', { class: 'auth', role: 'status' }, mark('loop'), h('span', { class: 'sr', text: 'Carregando' })));
   try {
     if (!state.token) {
       const s = await api('/auth/status');
@@ -154,7 +180,7 @@ function renderShell() {
   const select = h('select', { class: 'field', 'aria-label': 'Projeto', onchange: (e) => openProject(e.target.value) },
     state.projects.map((p) => h('option', { value: p.id, selected: p.id === state.projectId, text: p.name })));
   const top = h('header', { class: 'top' },
-    h('span', { class: 'logo' }, h('img', { src: 'favicon.svg', alt: '' }), h('span', { class: 'sr', text: 'hh-analytics' })),
+    h('span', { class: 'logo' }, mark(), h('span', { class: 'brand', text: 'hh-analytics' })),
     state.projects.length ? select : null,
     h('button', { class: 'btn small', onclick: newProject, text: '+ Projeto' }),
     h('span', { class: 'grow' }),
@@ -204,7 +230,7 @@ async function openProject(id) {
   const tabs = h('div', { class: 'tabs', role: 'tablist' },
     [['overview', 'Visão geral'], ['settings', 'Instalação e ajustes']].map(([k, label]) =>
       h('button', { role: 'tab', 'aria-selected': String(state.tab === k), onclick: () => { state.tab = k; openProject(id); }, text: label })));
-  const body = h('div', {});
+  const body = h('div', { class: 'view' });
   main.replaceChildren(
     h('div', { class: 'row between' }, h('h2', { text: state.project.name }), state.tab === 'overview' ? rangePicker(body) : null),
     tabs,
@@ -216,15 +242,30 @@ async function openProject(id) {
 }
 
 function rangePicker(body) {
-  const live = h('span', { class: 'live' }, h('i'), h('span', { class: 'num', id: 'live', text: '…' }));
-  const seg = h('div', { class: 'seg', role: 'group', 'aria-label': 'Período' },
+  const live = h('span', { class: 'live', title: 'Visitantes com atividade nos últimos 5 minutos' }, h('i'), h('span', { class: 'num', id: 'live', text: '…' }));
+  // Indicador desliza até o período escolhido (mostra de onde para onde mudou)
+  const ind = h('span', { class: 'seg-ind', 'aria-hidden': 'true' });
+  const place = () => {
+    const b = seg.querySelector('[aria-pressed="true"]');
+    if (!b) return;
+    ind.style.width = `${b.offsetWidth}px`;
+    ind.style.transform = `translateX(${b.offsetLeft}px)`;
+  };
+  const seg = h('div', { class: 'seg', role: 'group', 'aria-label': 'Período' }, ind,
     [['24h', '24 h'], ['7d', '7 dias'], ['30d', '30 dias'], ['90d', '90 dias']].map(([k, label]) =>
       h('button', { 'aria-pressed': String(state.range === k), text: label, onclick: () => {
+        if (state.range === k) return;
         state.range = k;
         save('hh:range', k);
         seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.textContent === label)));
+        place();
         loadOverview(body);
       } })));
+  requestAnimationFrame(() => {
+    place();
+    seg.classList.add('ready'); // só anima depois da primeira posição (não desliza do zero ao abrir)
+  });
+  document.fonts?.ready.then(place);
   return h('div', { class: 'row' }, live, seg);
 }
 
@@ -232,7 +273,8 @@ function rangePicker(body) {
 async function loadOverview(body) {
   const id = state.projectId;
   const q = `range=${state.range}&tz=${encodeURIComponent(tz)}`;
-  body.replaceChildren(h('div', { class: 'cards' }, Array.from({ length: 6 }, () => h('div', { class: 'skeleton', style: 'height:86px' }))), h('div', { class: 'skeleton', style: 'height:260px' }));
+  body.classList.add('loading');
+  if (!body.firstChild) body.replaceChildren(h('div', { class: 'skeleton', style: 'height:92px;margin-top:1.25rem' }), h('div', { class: 'skeleton', style: 'height:300px;margin-top:.75rem' }));
   const get = (path) => api(`/reports/${id}/${path}${path.includes('?') ? '&' : '?'}${q}`);
   let r;
   try {
@@ -240,35 +282,46 @@ async function loadOverview(body) {
     const values = await Promise.all(keys.map(get));
     r = Object.fromEntries(keys.map((k, i) => [k, values[i]]));
   } catch (err) {
+    body.classList.remove('loading');
     body.replaceChildren(h('p', { class: 'err', text: err.message }));
     return;
   }
   if (id !== state.projectId) return;
+  body.classList.remove('loading');
 
+  // Faixa de números do período, comparando com o período anterior do mesmo tamanho
   const { current: c, previous: p } = r.summary;
-  const card = (k, v, now, before, invert) => {
-    let delta = null;
+  const kpi = (label, now, before, format, invert) => {
+    const v = h('div', { class: 'v num' });
+    countTo(v, now, format);
+    let delta = h('span', { class: 'delta flat', title: 'Sem dados no período anterior para comparar', text: '—' });
     if (before > 0 && now !== before) {
       const change = Math.round(((now - before) / before) * 100);
       const good = invert ? change < 0 : change > 0;
-      delta = h('span', { class: `delta ${good ? 'up' : 'down'}`, text: `${change > 0 ? '▲' : '▼'} ${Math.abs(change)}%` });
-    }
-    return h('div', { class: 'card' }, h('div', { class: 'k', text: k }), h('div', { class: 'v num', text: v }), delta || h('span', { class: 'delta muted', text: 'vs. período anterior' }));
+      delta = h('span', { class: `delta ${good ? 'up' : 'down'}`, title: 'Em relação ao período anterior do mesmo tamanho', text: `${change > 0 ? '+' : '−'}${Math.abs(change)}%` });
+    } else if (before > 0) delta = h('span', { class: 'delta flat', text: 'igual ao anterior' });
+    return h('div', { class: 'kpi' }, h('div', { class: 'k', text: label }), v, delta);
   };
   const empty = !c.pageviews && !c.events;
+  const unit = r.timeseries.unit === 'hour' ? 'Por hora' : 'Por dia';
   body.replaceChildren(
-    h('div', { class: 'cards' },
-      card('Visitantes', n.format(c.visitors), c.visitors, p.visitors),
-      card('Visitas (pageviews)', n.format(c.pageviews), c.pageviews, p.pageviews),
-      card('Sessões', n.format(c.sessions), c.sessions, p.sessions),
-      card('Taxa de rejeição', pct(c.bounceRate), c.bounceRate, p.bounceRate, true),
-      card('Duração média', dur(c.avgSessionSeconds), c.avgSessionSeconds, p.avgSessionSeconds),
-      card('Eventos', n.format(c.events), c.events, p.events)
+    h('section', { class: 'kpis', 'aria-label': 'Resumo do período' },
+      kpi('Visitantes', c.visitors, p.visitors, (v) => n.format(v)),
+      kpi('Visitas', c.pageviews, p.pageviews, (v) => n.format(v)),
+      kpi('Sessões', c.sessions, p.sessions, (v) => n.format(v)),
+      kpi('Rejeição', c.bounceRate, p.bounceRate, pct, true),
+      kpi('Duração média', c.avgSessionSeconds, p.avgSessionSeconds, dur),
+      kpi('Eventos', c.events, p.events, (v) => n.format(v))
     ),
     empty
-      ? h('div', { class: 'panel empty' }, 'Nenhum dado neste período. Instale o SDK no seu site: ', h('a', { href: '#', onclick: (e) => { e.preventDefault(); state.tab = 'settings'; openProject(id); }, text: 'ver instalação' }), '.')
-      : h('div', { class: 'panel' }, h('div', { class: 'row between' }, h('h3', { text: r.timeseries.unit === 'hour' ? 'Por hora' : 'Por dia' }),
-          h('div', { class: 'legend' }, h('span', {}, h('i', { style: 'background:var(--accent)' }), 'Visitas'), h('span', {}, h('i', { style: 'background:var(--accent-2)' }), 'Visitantes'))),
+      ? h('div', { class: 'panel empty-state' },
+          mark(),
+          h('h3', { text: 'Nenhuma visita neste período' }),
+          h('p', { class: 'muted', text: 'Quando o SDK estiver no site, as visitas aparecem aqui em segundos.' }),
+          h('button', { class: 'btn primary', onclick: () => { state.tab = 'settings'; openProject(id); }, text: 'Ver como instalar' }))
+      : h('section', { class: 'panel chart-panel' },
+          h('div', { class: 'row between' }, h('h3', { text: unit }),
+            h('div', { class: 'legend' }, h('span', {}, h('i', { class: 'sw bar' }), 'Visitas'), h('span', {}, h('i', { class: 'sw line' }), 'Visitantes'))),
           chart(r.timeseries)),
     h('div', { class: 'grid2' },
       ranking('Páginas', r.pages, (x) => x.value || '/', (x) => x.pageviews),
@@ -297,47 +350,96 @@ async function live() {
   }
 }
 
+// Ranking: as barras crescem da esquerda, em sequência curta (é uma lista aparecendo como lista)
 function ranking(title, rows, label, value) {
   const max = Math.max(1, ...rows.map(value));
+  const total = rows.reduce((a, x) => a + value(x), 0) || 1;
   return h('section', { class: 'panel' }, h('h3', { text: title }),
     rows.length
-      ? h('ul', { class: 'list' }, rows.map((x) => h('li', { title: label(x) },
-          h('i', { class: 'bg', style: `transform:scaleX(${(value(x) / max).toFixed(3)})` }),
-          h('span', { text: label(x) }),
+      ? h('ul', { class: 'list' }, rows.map((x, i) => h('li', { title: label(x) },
+          h('i', { class: 'bg', style: `--w:${(value(x) / max).toFixed(3)};--i:${Math.min(i, 8)}` }),
+          h('span', { class: 'name', text: label(x) }),
+          h('span', { class: 'share num', text: `${Math.round((value(x) / total) * 100)}%` }),
           h('b', { class: 'num', text: n.format(value(x)) }))))
-      : h('p', { class: 'empty', text: 'Nada ainda.' }));
+      : h('p', { class: 'empty', text: 'Nada neste período.' }));
 }
 
-// Barras = visitas, linha = visitantes. Desenhado na largura real da tela (texto do eixo sem deformar).
+const dayFmt = new Intl.DateTimeFormat('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
+const pointLabel = (p, unit) => {
+  const d = new Date(`${p.date.slice(0, 10)}T12:00:00`);
+  return unit === 'hour' ? `${dayFmt.format(d)}, ${p.date.slice(11, 13)}h` : dayFmt.format(d);
+};
+
+// Barras = visitas, linha e área = visitantes. Desenhado na largura real (texto sem deformar).
+// Ao carregar ou trocar o período, o gráfico é revelado da esquerda para a direita: os dados mudaram.
 function chart({ points, unit }) {
-  const W = Math.max(300, Math.round((document.getElementById('main')?.clientWidth || 800) - 64)), H = 220, pad = { l: 36, r: 8, t: 10, b: 24 };
+  const W = Math.max(300, Math.round((document.getElementById('main')?.clientWidth || 800) - 64));
+  const H = 260;
+  const pad = { l: 40, r: 12, t: 14, b: 28 };
   const max = Math.max(1, ...points.map((p) => p.pageviews));
   const step = (W - pad.l - pad.r) / Math.max(1, points.length);
   const y = (v) => pad.t + (H - pad.t - pad.b) * (1 - v / max);
+  const cx = (i) => pad.l + i * step + step / 2;
+  const base = H - pad.b;
   const root = svg('svg', { class: 'chart', viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Visitas e visitantes no período' });
+
+  const defs = svg('defs', {});
+  const grad = svg('linearGradient', { id: 'area-fill', x1: 0, y1: 0, x2: 0, y2: 1 });
+  grad.append(svg('stop', { class: 'stop-top', offset: '0' }), svg('stop', { class: 'stop-bottom', offset: '1' }));
+  defs.append(grad);
+  root.append(defs);
+
   for (let i = 0; i <= 3; i++) {
     const v = Math.round((max / 3) * i);
     root.append(svg('line', { class: 'grid', x1: pad.l, x2: W - pad.r, y1: y(v), y2: y(v) }));
-    const t = svg('text', { x: 4, y: y(v) + 4 });
+    const t = svg('text', { class: 'axis', x: pad.l - 8, y: y(v) + 4, 'text-anchor': 'end' });
     t.textContent = n.format(v);
     root.append(t);
   }
+  const plot = svg('g', { class: 'plot' });
   const labelEvery = Math.ceil(points.length / Math.max(3, Math.floor(W / 90)));
   points.forEach((p, i) => {
     const x = pad.l + i * step;
-    const bar = svg('rect', { class: 'bar', x: x + step * 0.15, width: Math.max(1, step * 0.7), y: y(p.pageviews), height: H - pad.b - y(p.pageviews), rx: 2 });
-    const tip = svg('title', {});
-    tip.textContent = `${p.date}: ${n.format(p.pageviews)} visitas, ${n.format(p.visitors)} visitantes`;
-    bar.append(tip);
-    root.append(bar);
+    plot.append(svg('rect', { class: 'bar', x: x + step * 0.18, width: Math.max(1, step * 0.64), y: y(p.pageviews), height: Math.max(0, base - y(p.pageviews)), rx: Math.min(3, step * 0.2) }));
     if (i % labelEvery === 0) {
-      const t = svg('text', { x: x + step / 2, y: H - 6, 'text-anchor': 'middle' });
-      t.textContent = unit === 'hour' ? p.date.slice(11, 16) : `${p.date.slice(8, 10)}/${p.date.slice(5, 7)}`;
+      const t = svg('text', { class: 'axis', x: cx(i), y: H - 8, 'text-anchor': 'middle' });
+      t.textContent = unit === 'hour' ? `${p.date.slice(11, 13)}h` : `${p.date.slice(8, 10)}/${p.date.slice(5, 7)}`;
       root.append(t);
     }
   });
-  root.append(svg('polyline', { class: 'line', points: points.map((p, i) => `${pad.l + i * step + step / 2},${y(p.visitors)}`).join(' ') }));
-  return root;
+  const line = points.map((p, i) => `${cx(i)},${y(p.visitors)}`);
+  plot.append(svg('path', { class: 'area', d: `M${cx(0)},${base} L${line.join(' L')} L${cx(points.length - 1)},${base} Z` }));
+  plot.append(svg('path', { class: 'line', d: `M${line.join(' L')}` }));
+  root.append(plot);
+
+  // Ponto em foco: guia vertical, marcador na linha e um rótulo com os números do dia (ou da hora)
+  const guide = svg('line', { class: 'guide', y1: pad.t, y2: base });
+  const dot = svg('circle', { class: 'dot', r: 4 });
+  root.append(guide, dot);
+  const tip = h('div', { class: 'tip', role: 'status', 'aria-live': 'off' });
+  const wrap = h('div', { class: 'chart-wrap' }, root, tip);
+  const show = (i) => {
+    const p = points[i];
+    const x = cx(i);
+    guide.setAttribute('x1', x);
+    guide.setAttribute('x2', x);
+    dot.setAttribute('cx', x);
+    dot.setAttribute('cy', y(p.visitors));
+    tip.replaceChildren(h('b', { text: pointLabel(p, unit) }),
+      h('span', {}, h('i', { class: 'sw bar' }), `${n.format(p.pageviews)} visitas`),
+      h('span', {}, h('i', { class: 'sw line' }), `${n.format(p.visitors)} visitantes`));
+    const scale = wrap.clientWidth / W;
+    const left = Math.min(Math.max(x * scale, 70), wrap.clientWidth - 70);
+    tip.style.transform = `translateX(calc(${left}px - 50%))`;
+    wrap.classList.add('focus');
+  };
+  wrap.addEventListener('pointermove', (e) => {
+    const r = wrap.getBoundingClientRect();
+    const x = ((e.clientX - r.left) / r.width) * W;
+    show(Math.min(points.length - 1, Math.max(0, Math.floor((x - pad.l) / step))));
+  });
+  wrap.addEventListener('pointerleave', () => wrap.classList.remove('focus'));
+  return wrap;
 }
 
 // ---------- Instalação e ajustes ----------
@@ -349,7 +451,7 @@ function renderSettings(body) {
   const endpoint = `${location.origin}${BASE}api`;
   const npmSnippet = `npm install @hh./analytics\n\nimport { analytics } from '@hh./analytics';\n\nanalytics.init({\n  endpoint: '${endpoint}',\n  token: '${ingest?.value || 'TOKEN'}'\n});\n\nanalytics.track('cadastro', { plano: 'pro' });`;
   const tagSnippet = `<script src="https://unpkg.com/@hh./analytics/dist/hh-analytics.min.js"\n  data-endpoint="${endpoint}"\n  data-token="${ingest?.value || 'TOKEN'}" defer></script>`;
-  const codeBlock = (text) => h('div', {}, h('pre', { class: 'code mono', text }), h('button', { class: 'btn small', style: 'margin-top:.5rem', onclick: () => copy(text), text: 'Copiar' }));
+  const codeBlock = (text) => h('div', { class: 'code-box' }, h('pre', { class: 'code mono', text }), h('button', { class: 'btn small copy', onclick: () => copy(text), text: 'Copiar' }));
 
   const act = async (fn, ok) => {
     try {
@@ -373,7 +475,7 @@ function renderSettings(body) {
 
   body.replaceChildren(h('div', { class: 'stack' },
     h('section', { class: 'panel' },
-      h('h3', { text: '1. Instale no seu site' }),
+      h('h3', { text: 'Instale no seu site' }),
       h('p', { class: 'muted', text: 'Com npm (React, Vue, Next, qualquer bundler):' }), codeBlock(npmSnippet),
       h('p', { class: 'muted', text: 'Ou sem bundler, com uma tag no <head>:' }), codeBlock(tagSnippet)),
     h('section', { class: 'panel' },
