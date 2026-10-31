@@ -31,7 +31,9 @@ services:
       DASHBOARD: ${DASHBOARD:-on}
       DASHBOARD_DIR: ${DASHBOARD_DIR:-}
     ports:
-      - "${PORT:-4000}:4000"
+      # Só nesta máquina por padrão: o Docker ignora o firewall (ufw), então porta aberta aqui fica aberta para a internet.
+      # Atrás de um proxy na mesma máquina, deixe assim; para expor direto, BIND_ADDRESS=0.0.0.0
+      - "${BIND_ADDRESS:-127.0.0.1}:${PORT:-4000}:4000"
     depends_on:
       postgres:
         condition: service_healthy

@@ -3,6 +3,8 @@
 // escritos só com textContent: qualquer visitante controla esses textos, então nada vira HTML.
 
 const app = document.getElementById('app');
+// Caminho onde o painel está (ex.: "/" ou "/admin/analytics/" atrás de um proxy): a API fica em {BASE}api
+const BASE = new URL('.', document.currentScript?.src || location.href).pathname;
 const KEY = 'hh:admin';
 const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 const state = {
@@ -64,7 +66,7 @@ async function copy(text) {
 
 // ---------- API ----------
 async function api(path, { method = 'GET', body } = {}) {
-  const res = await fetch(`/api${path}`, {
+  const res = await fetch(`${BASE}api${path}`, {
     method,
     headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}) },
     body: body ? JSON.stringify(body) : undefined
@@ -344,7 +346,7 @@ function renderSettings(body) {
   const ingest = p.tokens.find((t) => t.type === 'INGEST');
   const query = p.tokens.find((t) => t.type === 'QUERY');
   const manage = p.role === 'OWNER' || p.role === 'ADMIN';
-  const endpoint = `${location.origin}/api`;
+  const endpoint = `${location.origin}${BASE}api`;
   const npmSnippet = `npm install @hh./analytics\n\nimport { analytics } from '@hh./analytics';\n\nanalytics.init({\n  endpoint: '${endpoint}',\n  token: '${ingest?.value || 'TOKEN'}'\n});\n\nanalytics.track('cadastro', { plano: 'pro' });`;
   const tagSnippet = `<script src="https://unpkg.com/@hh./analytics/dist/hh-analytics.min.js"\n  data-endpoint="${endpoint}"\n  data-token="${ingest?.value || 'TOKEN'}" defer></script>`;
   const codeBlock = (text) => h('div', {}, h('pre', { class: 'code mono', text }), h('button', { class: 'btn small', style: 'margin-top:.5rem', onclick: () => copy(text), text: 'Copiar' }));

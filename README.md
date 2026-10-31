@@ -31,7 +31,18 @@ docker compose up -d --build
 
 Abra http://localhost:4000. No primeiro acesso você cria a conta de dono; depois disso o cadastro fecha (`ALLOW_REGISTER=true` abre). Crie um projeto e copie o token de ingestão.
 
-Em produção, coloque um proxy com HTTPS na frente (Caddy, Nginx) e defina `TRUST_PROXY=1`.
+Em produção, coloque um proxy com HTTPS na frente (Caddy, Nginx) e defina `TRUST_PROXY=1`. A porta escuta só em `127.0.0.1` por padrão (`BIND_ADDRESS`): o Docker ignora o firewall da máquina, então expor direto deixaria a API aberta sem HTTPS.
+
+O painel funciona também num subcaminho de outro site (ex.: `https://meusite.com/admin/analytics/`): basta o proxy repassar esse caminho sem o prefixo. Com Caddy:
+
+```
+redir /admin/analytics /admin/analytics/ 308
+handle_path /admin/analytics/* {
+	reverse_proxy 127.0.0.1:4000
+}
+```
+
+O SDK usa então `endpoint: 'https://meusite.com/admin/analytics/api'`.
 
 ### Variáveis (`.env`)
 
@@ -40,6 +51,7 @@ Em produção, coloque um proxy com HTTPS na frente (Caddy, Nginx) e defina `TRU
 | `POSTGRES_PASSWORD` | — | Senha do banco. Obrigatória. |
 | `POSTGRES_DB`, `POSTGRES_USER` | `analytics` | Nome do banco e usuário. |
 | `PORT` | `4000` | Porta da API e do painel. |
+| `BIND_ADDRESS` | `127.0.0.1` | Interface da porta. `0.0.0.0` expõe para a rede (só sem proxy na frente). |
 | `TRUST_PROXY` | vazio | Proxies na frente da API, para os limites por IP verem o IP real. |
 | `ALLOW_REGISTER` | `false` | `true` deixa qualquer pessoa criar conta. |
 | `RETENTION_DAYS` | `0` | Apaga visitas e eventos com mais de N dias (0 = guarda tudo). |
